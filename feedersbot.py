@@ -1,12 +1,13 @@
 import discord
 from discord.ext import commands
 from ctypes.util import find_library
+import random
+import logging
 from discord import opus
 from discord.ext.commands import Bot
-import random
 import youtube_dl
 import string
-import logging
+
 
 
 log = logging.getLogger(__name__)
@@ -15,12 +16,21 @@ if not discord.opus.is_loaded():
     opus_path = find_library("opus")
     discord.opus.load_opus(opus_path)
 
-# client = discord.Client()
 client = commands.Bot(command_prefix='#')
 
 players = {}
 
-contexto = ''
+contexto = None
+
+async def play_youtube_url(link, ctx=contexto):
+    print('Contexto %s', ctx)
+    server = ctx.message.server
+    print('Server %s', ctx)
+    voice_bot = client.voice_client_in(server)
+    player = await voice_bot.create_ytdl_player(link)
+    players[server.id] = player
+    player.start()
+
 
 @client.event
 async def on_ready():
@@ -49,18 +59,9 @@ async def join(ctx):
     contexto = ctx
 
 @client.command(pass_context=True)
-async def play(ctx,  link: str):
+async def play(ctx, link):
+    await play_youtube_url(link, ctx)
 
-    server = ctx.message.server
-    voice_bot = client.voice_client_in(server)
-
-    print('Tocando video %s', link)
-
-    log.info('Tocando video da url %s', link)
-
-    player = await voice_bot.create_ytdl_player(url=link)
-    players[server.id] = player
-    player.start()
 
 @client.event
 async def on_member_join(member):
@@ -73,19 +74,12 @@ async def on_member_join(member):
 @client.event
 async def on_message(message):
 
-    message.content = message.content.lower()
+    lower_message = message.content.lower()
 
     if message.author == client.user:
         return
-    if message.content == "boa noite":
-
-        print('Contexto %s', contexto)
-        server = contexto.message.server
-        print('Server %s', contexto)
-        voice_bot = client.voice_client_in(server)
-        player = await voice_bot.create_ytdl_player('https://www.youtube.com/watch?v=hPJVikuF1IIs')
-        players[server.id] = player
-        player.start()
+    if lower_message == "boa noite":
+        play_youtube_url('https://www.youtube.com/watch?v=hPJVikuF1IIs')
         await client.send_message(message.channel, "Boa noite " + message.author.name + " se divirta muito!!!")
 
     await client.process_commands(message)
