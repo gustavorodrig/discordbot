@@ -3,12 +3,8 @@ from discord.ext import commands
 from ctypes.util import find_library
 import random
 import logging
-from discord import opus
-from discord.ext.commands import Bot
-import youtube_dl
-import string
-
-
+from handler import MatchesHandler
+from domain.Feeders import Feeders
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +17,7 @@ client = commands.Bot(command_prefix='#')
 players = {}
 
 contexto = None
+
 
 async def play_youtube_url(link, ctx=contexto):
     print('Contexto %s', ctx)
@@ -40,6 +37,7 @@ async def on_ready():
     print('------')
     await client.change_presence(game=discord.Game(name="Bot dos Feeders"))
 
+
 @client.command(pass_context=True)
 async def perolas(ctx):
     print("teste")
@@ -50,18 +48,37 @@ async def perolas(ctx):
 
     await client.say(random.choice(perolas))
 
+
 @client.command(pass_context=True)
 async def join(ctx):
-
     global contexto
     channel = ctx.message.author.voice.voice_channel
     await client.join_voice_channel(channel)
     contexto = ctx
 
+
 @client.command(pass_context=True)
 async def play(ctx, link):
     await play_youtube_url(link, ctx)
 
+
+@client.command(pass_context=True)
+async def feeders(ctx):
+    embed = discord.Embed(title="Feeders:", description="(Digite #feed {Nome} para ver as 10 ultimas partidas", color=0x00a0ea)
+    feeders = Feeders()
+    embed.add_field(name="Lista", value=feeders.getFeedersPrint())
+    await client.say(embed=embed)
+
+
+@client.command(pass_context=True)
+async def feeds(ctx, player_name):
+    feeders = Feeders()
+    player_id = feeders.steamIdByName(player_name)
+    matches = MatchesHandler.find_matches(player_id)
+    await client.send_message(ctx.message.channel, 'Ultimos 10 Jogos de {}'.format(player_name))
+
+    for match in matches:
+        await client.send_message(ctx.message.channel, '```diff\n{}{}\n```'.format('+ ' if match.venceu() else '- ', match.resultado()))
 
 @client.event
 async def on_member_join(member):
@@ -71,17 +88,18 @@ async def on_member_join(member):
     print("Sent message to " + member.name)
     print("Sent message about " + member.name + " to #CHANNEL")
 
+
 @client.event
 async def on_message(message):
-
     lower_message = message.content.lower()
 
     if message.author == client.user:
         return
     if lower_message == "boa noite":
-        play_youtube_url('https://www.youtube.com/watch?v=hPJVikuF1IIs')
+        await play_youtube_url('https://www.youtube.com/watch?v=hPJVikuF1IIs', contexto)
         await client.send_message(message.channel, "Boa noite " + message.author.name + " se divirta muito!!!")
 
     await client.process_commands(message)
 
-client.run("TOKEN")
+
+client.run("NTIwMDMwNzQ1MzM5NjI1NDgy.Du1ynA.315gJdzeRtdJRLgsU1VFwJ6kz2U")
